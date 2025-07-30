@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>五分钟动态演绎 - 作品列表</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            netdisk: '#165DFF',
+            success: '#36D399',
+          }
+        }
+      }
+    }
+  </script>
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .card-hover {
+        @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+      }
+      .aspect-3-4 {
+        aspect-ratio: 3/4;
+      }
+      .netdisk-btn {
+        @apply flex items-center justify-center rounded-full hover:bg-primary/10 text-netdisk cursor-pointer transition-all duration-300;
+      }
+      .netdisk-btn:hover {
+        @apply bg-primary/20;
+      }
+      .image-container {
+        @apply relative overflow-hidden rounded-t-xl;
+      }
+      .work-card {
+        @apply bg-white rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md;
+      }
+      .copy-code {
+        @apply relative cursor-pointer text-primary border-b border-primary/20 hover:border-primary/60 transition-all duration-300;
+      }
+      .copy-code::after {
+        content: '点击复制';
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%) scale(0.8);
+        opacity: 0;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+        pointer-events: none;
+      }
+      .copy-code:hover::after {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+      }
+      /* 新增：模态框样式 */
+      .modal-overlay {
+        @apply fixed inset-0 bg-black/70 z-50 opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center;
+      }
+      .modal-overlay.active {
+        @apply opacity-100 pointer-events-auto;
+      }
+      .modal-content {
+        @apply bg-white rounded-xl overflow-hidden max-w-lg w-full mx-4 transform scale-95 transition-transform duration-300 relative;
+      }
+      .modal-overlay.active .modal-content {
+        @apply scale-100;
+      }
+      .modal-image {
+        @apply w-full h-auto rounded-t-xl;
+      }
+      .close-modal {
+        @apply absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 flex items-center justify-center text-gray-700 hover:bg-white transition-colors duration-200 z-10;
+      }
+      /* 新增：图标按钮样式 */
+      .icon-btn {
+        @apply w-10 h-10 rounded-full flex items-center justify-center text-white shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer;
+        background: linear-gradient(135deg, #165DFF 0%, #4080FF 100%);
+      }
+    }
+  </style>
+  <style>
+    /* 作品卡片网格布局 - 响应式设计 */
+    #works-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    @media (max-width: 640px) {
+      #works-container {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+    
+    @media (min-width: 1280px) {
+      #works-container {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+    }
+    
+    /* 文字样式优化 */
+    .work-card h3 {
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+    
+    .text-sm {
+      font-size: 0.85rem;
+    }
+    
+    .text-xs {
+      font-size: 0.75rem;
+    }
+    
+    /* 卡片内边距 */
+    .card-content {
+      padding: 0.8rem;
+    }
+    
+    /* 网盘按钮样式 */
+    .netdisk-btn {
+      width: 28px;
+      height: 28px;
+    }
+    
+    /* 复制成功提示 */
+    .copy-toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 100;
+    }
+    
+    .copy-toast.show {
+      opacity: 1;
+    }
+    
+    /* 链接错误提示 */
+    .link-error {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #ff4d4f;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      z-index: 100;
+    }
+    
+    .link-error.show {
+      opacity: 1;
+    }
+    
+    /* 新增：禁止页面滚动 */
+    .no-scroll {
+      overflow: hidden;
+    }
+    
+    /* 搜索区布局调整 */
+    .search-container {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 0.75rem;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 font-sans">
+  <!-- 导航栏 -->
+  <header class="sticky top-0 bg-white shadow-sm z-10">
+    <div class="container mx-auto px-4 py-4">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <!-- 网站标题 -->
+        <div class="flex items-center gap-2">
+          <i class="fa fa-play-circle text-primary text-2xl"></i>
+          <h1 class="text-xl font-bold text-gray-800">五分钟动态演绎</h1>
+        </div>
+      </div>
+      
+      <!-- 搜索区与操作按钮 - 调整间距 -->
+      <div class="mt-4 search-container">
+        <!-- 搜索框 -->
+        <div class="relative flex-1">
+          <input type="text" id="search-input" placeholder="搜索作品标题或关键词..." 
+                 class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 pl-10">
+          <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        </div>
+        
+        <!-- 新增：操作按钮组 - 增加间距 -->
+        <div class="action-buttons ml-4">
+          <button class="icon-btn" id="wechatBtn" title="微信交流">
+            <i class="fa fa-weixin text-lg"></i>
+          </button>
+          <button class="icon-btn" id="coffeeBtn" title="支持作者">
+            <i class="fa fa-coffee text-lg"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- 排序选项 - 调整与搜索区的间距 -->
+      <div class="mt-4 flex justify-between items-center">
+        <div class="text-sm text-gray-500">找到 8 个作品</div>
+        <div class="flex gap-2">
+          <button class="sort-btn sort-oldest px-3 py-1 bg-primary/10 text-primary rounded text-sm" data-sort="oldest">
+            最早发布
+          </button>
+          <button class="sort-btn sort-latest px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200" data-sort="latest">
+            最新发布
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 新增：微信模态框 -->
+  <div class="modal-overlay" id="wechatModal">
+    <div class="modal-content">
+      <button class="close-modal" data-modal="wechatModal">
+        <i class="fa fa-times"></i>
+      </button>
+      <img src="https://picsum.photos/600/400?random=10" alt="微信交流群" class="modal-image">
+    </div>
+  </div>
+
+  <!-- 新增：咖啡模态框 -->
+  <div class="modal-overlay" id="coffeeModal">
+    <div class="modal-content">
+      <button class="close-modal" data-modal="coffeeModal">
+        <i class="fa fa-times"></i>
+      </button>
+      <img src="https://z.wiki/u/lABpqC" alt="请作者喝咖啡" class="modal-image">
+    </div>
+  </div>
+
+  <main class="container mx-auto px-4 py-6">
+    <!-- 作品列表 -->
+    <div id="works-container">
+      <!-- 作品1 -->
+      <div class="work-card" data-id="1" data-title="01.标题展现" data-date="2023-10-15" data-views="12.5万">
+        <div class="image-container">
+          <div class="relative aspect-3-4">
+            <img src="https://z.wiki/u/kdBjmB" alt="01.标题展现" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="font-semibold text-gray-800 line-clamp-2 mb-2">有手就会！影视飓风级别的动画制作——「五分钟动态演绎」01.标题展现</h3>
+          <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
+            <span><i class="fa fa-calendar-o mr-1"></i> 2023-10-15</span>
+            <span><i class="fa fa-eye mr-1"></i> 12.5万</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">提取码: <span class="copy-code" data-code="c23p">c23p</span></span>
+            </div>
+            <div class="flex gap-1">
+              <button class="netdisk-btn" data-href="https://pan.quark.cn/s/e58d1b74ec93">
+                <i class="fa fa-cloud-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 作品2 -->
+      <div class="work-card" data-id="2" data-title="02.表格渐入" data-date="2024-12-20" data-views="5.2万">
+        <div class="image-container">
+          <div class="relative aspect-3-4">
+            <img src="https://z.wiki/u/LGhcov" alt="02.表格渐入" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="font-semibold text-gray-800 line-clamp-2 mb-2">一次学会！影视飓风级别的动画制作——「五分钟动态演绎」02. 表格渐入、重点强调、表格回归、细节标注</h3>
+          <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
+            <span><i class="fa fa-calendar-o mr-1"></i> 2024-12-20</span>
+            <span><i class="fa fa-eye mr-1"></i> 5.2万</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">提取码: <span class="copy-code" data-code="c23p">c23p</span></span>
+            </div>
+            <div class="flex gap-1">
+              <button class="netdisk-btn" data-href="https://pan.quark.cn/s/e58d1b74ec93">
+                <i class="fa fa-cloud-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 作品3 -->
+      <div class="work-card" data-id="3" data-title="03.对比/渐进动画" data-date="2023-09-15" data-views="15.3万">
+        <div class="image-container">
+          <div class="relative aspect-3-4">
+            <img src="https://z.wiki/u/IBpkVo" alt="03.对比/渐进动画" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="font-semibold text-gray-800 line-clamp-2 mb-2">从入门到进阶！影视飓风级别的动画制作——「五分钟动态演绎」03. 对比/渐进动画</h3>
+          <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
+            <span><i class="fa fa-calendar-o mr-1"></i> 2023-09-15</span>
+            <span><i class="fa fa-eye mr-1"></i> 15.3万</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">提取码: <span class="copy-code" data-code="nWCv">nWCv</span></span>
+            </div>
+            <div class="flex gap-1">
+              <button class="netdisk-btn" data-href="https://pan.quark.cn/s/b3132c7ae6a6">
+                <i class="fa fa-cloud-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 作品4 -->
+      <div class="work-card" data-id="4" data-title="04.数据动画" data-date="2025-03-02" data-views="9.8万">
+        <div class="image-container">
+          <div class="relative aspect-3-4">
+            <img src="https://z.wiki/u/PslBsD" alt="04.数据动画" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="font-semibold text-gray-800 line-clamp-2 mb-2">零基础成为数码博主！小白测评同款数据动画——「五分钟动态演绎」04.数据动画</h3>
+          <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
+            <span><i class="fa fa-calendar-o mr-1"></i> 2025-03-02</span>
+            <span><i class="fa fa-eye mr-1"></i> 9.8万</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">提取码: <span class="copy-code" data-code="gGbR">gGbR</span></span>
+            </div>
+            <div class="flex gap-1">
+              <button class="netdisk-btn" data-href="https://pan.quark.cn/s/7cc461360ea9">
+                <i class="fa fa-cloud-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 作品5 -->
+      <div class="work-card" data-id="5" data-title="05.轰然坠落" data-date="2025-03-05" data-views="7.6万">
+        <div class="image-container">
+          <div class="relative aspect-3-4">
+            <img src="https://z.wiki/u/sCVEKA" alt="05.轰然坠落" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="font-semibold text-gray-800 line-clamp-2 mb-2">雷军同款！小米发布会常用动画——「五分钟动态演绎」05.轰然坠落</h3>
+          <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
+            <span><i class="fa fa-calendar-o mr-1"></i> 2025-03-05</span>
+            <span><i class="fa fa-eye mr-1"></i> 7.6万</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">提取码: <span class="copy-code" data-code="v3rQ">v3rQ</span></span>
+            </div>
+            <div class="flex gap-1">
+              <button class="netdisk-btn" data-href="https://pan.quark.cn/s/8e97b75a6a6b">
+                <i class="fa fa-cloud-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 作品6 -->
+      <div class="work-card" data-id="6" data-title="06.问题动画" data-date="2025-04-01" data-views="11.2万">
+        <div class="image-container">
+          <div class="relative aspect-3-4">
+            <img src="https://z.wiki/u/SpY4fb" alt="06.问题动画" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="font-semibold text-gray-800 line-clamp-2 mb-2">超实用！先看测评同款功能性动画——「五分钟动态演绎」06.问题动画</h3>
+          <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
+            <span><i class="fa fa-calendar-o mr-1"></i> 2025-04-01</span>
+            <span><i class="fa fa-eye mr-1"></i> 11.2万</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">提取码: <span class="copy-code" data-code="1ChM">1ChM</span></span>
+            </div>
+            <div class="flex gap-1">
+              <button class="netdisk-btn" data-href="https://pan.quark.cn/s/532998f455d8">
+                <i class="fa fa-cloud-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 作品7 -->
+      <div class="work-card" data-id="7" data-title="07.画线动画" data-date="2025-04-07" data-views="18.9万">
+        <div class="image-container">
+          <div class="relative aspect-3-4">
+            <img src="https://z.wiki/u/eWvQHI" alt="07.画线动画" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="font-semibold text-gray-800 line-clamp-2 mb-2">如何做出和何同学同款的画线视频动画？——「五分钟动态演绎」07.画线动画</h3>
+          <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
+            <span><i class="fa fa-calendar-o mr-1"></i> 2025-04-07</span>
+            <span><i class="fa fa-eye mr-1"></i> 18.9万</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">提取码: <span class="copy-code" data-code="Cms2">Cms2</span></span>
+            </div>
+            <div class="flex gap-1">
+              <button class="netdisk-btn" data-href="https://pan.quark.cn/s/3b34037d7ead">
+                <i class="fa fa-cloud-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 作品8 -->
+      <div class="work-card" data-id="8" data-title="08.产品标注" data-date="2025-04-15" data-views="6.3万">
+        <div class="image-container">
+          <div class="relative aspect-3-4">
+            <img src="https://z.wiki/u/KwG5Mu" alt="08.产品标注" class="w-full h-full object-cover transition-transform duration-300 hover:scale-105">
+          </div>
+        </div>
+        <div class="card-content">
+          <h3 class="font-semibold text-gray-800 line-clamp-2 mb-2">影视飓风同款的产品标注动画怎么做——「五分钟动态演绎」08.产品标注</h3>
+          <div class="flex justify-between items-center text-sm text-gray-500 mb-3">
+            <span><i class="fa fa-calendar-o mr-1"></i> 2025-04-15</span>
+            <span><i class="fa fa-eye mr-1"></i> 6.3万</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500">提取码: <span class="copy-code" data-code="WN4j">WN4j</span></span>
+            </div>
+            <div class="flex gap-1">
+              <button class="netdisk-btn" data-href="https://pan.quark.cn/s/ac994530cd8e">
+                <i class="fa fa-cloud-download"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 复制提示框 -->
+  <div id="copy-toast" class="copy-toast">提取码已复制到剪贴板</div>
+  
+  <!-- 链接错误提示框 -->
+  <div id="link-error" class="link-error">网盘链接错误</div>
+
+  <script>
+    // 复制提取码功能
+    document.querySelectorAll('.copy-code').forEach(codeElement => {
+      codeElement.addEventListener('click', function() {
+        const code = this.getAttribute('data-code');
+        
+        // 复制提取码到剪贴板
+        copyTextToClipboard(code)
+          .then(() => {
+            // 显示复制成功提示
+            showCopyToast(`提取码 ${code} 已复制到剪贴板`);
+            
+            // 添加复制成功的视觉反馈
+            this.classList.add('text-success');
+            setTimeout(() => {
+              this.classList.remove('text-success');
+            }, 1500);
+          })
+          .catch(err => {
+            console.error('复制失败: ', err);
+            showCopyToast('复制失败，请手动复制提取码');
+          });
+      });
+    });
+    
+    // 网盘链接按钮点击事件 - 直接跳转
+    document.querySelectorAll('.netdisk-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const href = this.getAttribute('data-href');
+        
+        // 验证链接格式
+        if (!href || !href.startsWith('http')) {
+          showLinkError('网盘链接格式错误，请手动复制提取码');
+          return;
+        }
+        
+        // 打开网盘链接
+        window.open(href, '_blank');
+      });
+    });
+    
+    // 复制文本到剪贴板的函数
+    function copyTextToClipboard(text) {
+      return new Promise((resolve, reject) => {
+        // 首先尝试使用现代的 Clipboard API
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text)
+            .then(() => resolve())
+            .catch(err => {
+              console.warn('Clipboard API 不可用，回退到传统方法', err);
+              fallbackCopyTextToClipboard(text, resolve, reject);
+            });
+        } else {
+          // 传统方法：创建临时文本区域并使用 document.execCommand
+          fallbackCopyTextToClipboard(text, resolve, reject);
+        }
+      });
+    }
+    
+    // 传统的复制方法
+    function fallbackCopyTextToClipboard(text, resolve, reject) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      
+      // 使文本区域不在视口中
+      textArea.style.position = "fixed";
+      textArea.style.top = "-9999px";
+      textArea.style.left = "-9999px";
+      
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          resolve();
+        } else {
+          reject(new Error('document.execCommand 复制失败'));
+        }
+      } catch (err) {
+        reject(err);
+      } finally {
+        document.body.removeChild(textArea);
+      }
+    }
+    
+    // 显示复制提示
+    function showCopyToast(message) {
+      const toast = document.getElementById('copy-toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      
+      // 3秒后隐藏提示
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+    
+    // 显示链接错误提示
+    function showLinkError(message) {
+      const errorToast = document.getElementById('link-error');
+      errorToast.textContent = message;
+      errorToast.classList.add('show');
+      
+      // 3秒后隐藏提示
+      setTimeout(() => {
+        errorToast.classList.remove('show');
+      }, 3000);
+    }
+
+    // 排序功能
+    document.querySelectorAll('.sort-btn').forEach(button => {
+      button.addEventListener('click', function() {
+        const sortType = this.getAttribute('data-sort');
+        const worksContainer = document.getElementById('works-container');
+        const workCards = Array.from(document.querySelectorAll('.work-card'));
+        
+        // 移除所有排序按钮的活跃状态
+        document.querySelectorAll('.sort-btn').forEach(btn => {
+          btn.classList.remove('bg-primary/10', 'text-primary');
+          btn.classList.add('bg-gray-100', 'text-gray-700');
+        });
+        
+        // 添加当前按钮的活跃状态
+        this.classList.remove('bg-gray-100', 'text-gray-700');
+        this.classList.add('bg-primary/10', 'text-primary');
+        
+        // 根据排序类型排序
+        if (sortType === 'oldest') {
+          workCards.sort((a, b) => {
+            return new Date(a.getAttribute('data-date')) - new Date(b.getAttribute('data-date'));
+          });
+        } else if (sortType === 'latest') {
+          workCards.sort((a, b) => {
+            return new Date(b.getAttribute('data-date')) - new Date(a.getAttribute('data-date'));
+          });
+        }
+        
+        // 重新排列卡片
+        worksContainer.innerHTML = '';
+        workCards.forEach(card => {
+          // 添加动画效果
+          card.style.opacity = '0';
+          card.style.transform = 'translateY(20px)';
+          worksContainer.appendChild(card);
+          
+          // 触发重排后添加动画
+          setTimeout(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+          }, 10);
+        });
+      });
+    });
+
+    // 搜索功能
+    const searchInput = document.getElementById('search-input');
+    searchInput.addEventListener('input', function() {
+      const searchTerm = this.value.toLowerCase().trim();
+      const workCards = document.querySelectorAll('.work-card');
+      
+      workCards.forEach(card => {
+        const title = card.getAttribute('data-title').toLowerCase();
+        
+        if (title.includes(searchTerm)) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    });
+    
+    // 新增：模态框交互逻辑
+    document.addEventListener('DOMContentLoaded', function() {
+      // 获取所有模态框和相关元素
+      const modalButtons = {
+        wechatBtn: document.getElementById('wechatBtn'),
+        coffeeBtn: document.getElementById('coffeeBtn')
+      };
+      
+      const modals = {
+        wechatModal: document.getElementById('wechatModal'),
+        coffeeModal: document.getElementById('coffeeModal')
+      };
+      
+      const closeButtons = document.querySelectorAll('.close-modal');
+      const body = document.body;
+      
+      // 为按钮添加点击事件
+      modalButtons.wechatBtn.addEventListener('click', function() {
+        openModal('wechatModal');
+      });
+      
+      modalButtons.coffeeBtn.addEventListener('click', function() {
+        openModal('coffeeModal');
+      });
+      
+      // 为关闭按钮添加点击事件
+      closeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+          const modalId = this.getAttribute('data-modal');
+          closeModal(modalId);
+        });
+      });
+      
+      // 为模态框背景添加点击事件
+      Object.values(modals).forEach(modal => {
+        modal.addEventListener('click', function(e) {
+          // 只有点击背景时才关闭模态框
+          if (e.target === this) {
+            closeModal(modal.id);
+          }
+        });
+      });
+      
+      // 打开模态框函数
+      function openModal(modalId) {
+        const modal = modals[modalId];
+        if (modal) {
+          modal.classList.add('active');
+          body.classList.add('no-scroll'); // 禁止背景滚动
+        }
+      }
+      
+      // 关闭模态框函数
+      function closeModal(modalId) {
+        const modal = modals[modalId];
+        if (modal) {
+          modal.classList.remove('active');
+          body.classList.remove('no-scroll'); // 允许背景滚动
+        }
+      }
+      
+      // 按ESC键关闭模态框
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          Object.keys(modals).forEach(modalId => {
+            closeModal(modalId);
+          });
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+  
